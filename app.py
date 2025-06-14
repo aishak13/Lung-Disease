@@ -93,17 +93,17 @@ def process_multiple_images(uploaded_files):
 def compare_images(image1, image2):
     pred1 = predict(image1)
     pred2 = predict(image2)
-    
+
     fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 6))
-    
+
     ax1.imshow(image1)
     ax1.set_title(f"Predicted: {class_names[np.argmax(pred1)]}")
     ax1.axis('off')
-    
+
     ax2.imshow(image2)
     ax2.set_title(f"Predicted: {class_names[np.argmax(pred2)]}")
     ax2.axis('off')
-    
+
     plt.tight_layout()
     return fig, pred1, pred2
 
@@ -111,68 +111,58 @@ def compare_images(image1, image2):
 def generate_pdf_report(results):
     pdf = FPDF()
     pdf.add_page()
-    
-    # Title
+
     pdf.set_font("Arial", "B", 16)
     pdf.cell(0, 10, "Lung Cancer Prediction Report", ln=True, align="C")
     pdf.ln(10)
-    
+
     for result in results:
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 10, f"Analysis for {result['filename']}", ln=True)
         pdf.ln(5)
-        
-        # Save image to a temporary file
+
         with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as tmpfile:
             result['image'].save(tmpfile, format="PNG")
             pdf.image(tmpfile.name, x=10, w=100)
-        
+
         pdf.set_font("Arial", "", 12)
         pdf.cell(0, 10, f"Predicted Class: {result['predicted_class']}", ln=True)
         pdf.ln(5)
-        
+
         pdf.cell(0, 10, "Confidence Scores:", ln=True)
         for class_name, confidence in zip(class_names, result['predictions']):
             pdf.cell(0, 10, f"{class_name}: {confidence:.2%}", ln=True)
-        
+
         pdf.ln(10)
-        
-        # Add cancer type information
+
         pdf.set_font("Arial", "B", 14)
         pdf.cell(0, 10, f"Information about {result['predicted_class']}", ln=True)
         pdf.ln(5)
         pdf.set_font("Arial", "", 12)
         info = display_cancer_info(result['predicted_class'])
         pdf.multi_cell(0, 10, info)
-        
+
         pdf.ln(10)
-    
-    # Save to a temporary file and read the contents
+
     with tempfile.NamedTemporaryFile(delete=False, suffix=".pdf") as tmpfile:
         pdf.output(tmpfile.name)
         with open(tmpfile.name, "rb") as f:
             return f.read()
 
-
 # Main function
 def main():
     st.title("Lung Cancer Prediction from CT Scan Images")
-    
-    # Navigation
     page = st.sidebar.selectbox("Navigate", ["Home"])
-    
     if page == "Home":
         home_page()
 
 def home_page():
     st.write("Upload one or multiple Chest CT Scan images to predict the type of lung cancer.")
-
-    # File uploader for multiple files
     uploaded_files = st.file_uploader("Choose CT Scan image(s)...", type=["jpg", "png", "jpeg"], accept_multiple_files=True)
 
     if uploaded_files:
         results = process_multiple_images(uploaded_files)
-        
+
         st.subheader("Analysis Results")
         for result in results:
             st.write(f"**File:** {result['filename']}")
@@ -186,32 +176,30 @@ def home_page():
                     st.write(f"{class_name}: {confidence:.2%}")
                 fig = plot_confidence_scores(result['predictions'])
                 st.pyplot(fig)
-        
-        # Comparative Analysis
+
         if len(results) >= 2:
             st.subheader("Comparative Analysis")
             st.write("Select two images to compare:")
             image1 = st.selectbox("Select first image:", [r['filename'] for r in results], key='image1')
             image2 = st.selectbox("Select second image:", [r['filename'] for r in results], key='image2')
-            
+
             if image1 != image2:
                 img1 = next(r['image'] for r in results if r['filename'] == image1)
                 img2 = next(r['image'] for r in results if r['filename'] == image2)
                 comp_fig, pred1, pred2 = compare_images(img1, img2)
                 st.pyplot(comp_fig)
-                
+
                 st.write("Prediction Comparison:")
                 for class_name, conf1, conf2 in zip(class_names, pred1, pred2):
                     st.write(f"{class_name}: {conf1:.2%} vs {conf2:.2%}")
-                
+
                 if np.argmax(pred1) != np.argmax(pred2):
                     st.warning("The predictions for these two images differ. Please consult with a healthcare professional for a thorough evaluation.")
                 else:
                     st.success("The predictions for these two images are consistent.")
             else:
                 st.warning("Please select two different images for comparison.")
-        
-        # Generate PDF report
+
         pdf_report = generate_pdf_report(results)
         st.download_button(
             label="Download PDF Report",
@@ -220,12 +208,10 @@ def home_page():
             mime="application/pdf"
         )
 
-    # Educational section
     st.sidebar.title("Learn About Lung Cancer Types")
     cancer_type = st.sidebar.selectbox("Select a cancer type to learn more:", class_names)
     st.sidebar.write(display_cancer_info(cancer_type))
 
-    # Footer
     st.markdown("""
     <style>
     .footer {
